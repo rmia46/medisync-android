@@ -2,7 +2,10 @@ package com.medisync.android
 
 import android.app.Application
 import com.medisync.android.core.alarms.MedicationAlarmScheduler
+import com.medisync.android.core.network.MistralAiClient
 import com.medisync.android.core.network.NetworkClient
+import com.medisync.android.core.notifications.NotificationHelper
+import com.medisync.android.core.notifications.NotificationStore
 import com.medisync.android.core.storage.AuthTokenManager
 import com.medisync.android.data.repository.AlertsRepository
 import com.medisync.android.data.repository.AlertsRepositoryImpl
@@ -30,6 +33,15 @@ class MediSyncApplication : Application() {
         private set
 
     lateinit var httpClient: HttpClient
+        private set
+
+    lateinit var externalHttpClient: HttpClient
+        private set
+
+    lateinit var mistralAiClient: MistralAiClient
+        private set
+
+    lateinit var notificationStore: NotificationStore
         private set
 
     lateinit var authRepository: AuthRepository
@@ -66,9 +78,14 @@ class MediSyncApplication : Application() {
         super.onCreate()
         tokenManager = AuthTokenManager(this)
         httpClient = NetworkClient.create(tokenManager)
+        externalHttpClient = NetworkClient.createExternalClient()
+        mistralAiClient = MistralAiClient(externalHttpClient, BuildConfig.MISTRAL_API_KEY)
+        notificationStore = NotificationStore(this)
+        NotificationHelper.createNotificationChannels(this)
+
         authRepository = AuthRepositoryImpl(httpClient, tokenManager)
-        triageRepository = TriageRepositoryImpl(httpClient)
-        prescriptionRepository = PrescriptionRepositoryImpl(httpClient)
+        triageRepository = TriageRepositoryImpl(httpClient, mistralAiClient)
+        prescriptionRepository = PrescriptionRepositoryImpl(httpClient, mistralAiClient)
         alternativesRepository = AlternativesRepositoryImpl(httpClient)
         pharmacyRepository = PharmacyRepositoryImpl(httpClient)
         alertsRepository = AlertsRepositoryImpl(httpClient)

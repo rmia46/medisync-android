@@ -4,13 +4,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -22,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -51,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.medisync.android.core.components.BadgeType
 import com.medisync.android.core.components.ElevationCard
+import com.medisync.android.core.components.MarkdownText
 import com.medisync.android.core.components.StatusBadge
 import com.medisync.android.core.theme.CanvasBackground
 import com.medisync.android.core.theme.ErrorCrimson
@@ -74,7 +81,7 @@ private val COMMON_SYMPTOMS = listOf(
     "Fatigue"
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TriageChatScreen(
     viewModel: TriageViewModel,
@@ -95,13 +102,22 @@ fun TriageChatScreen(
             TopAppBar(
                 title = {
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "AI Symptom Triage",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = "Guardrailed",
+                                tint = PrimaryTeal,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                         Text(
-                            text = "AI Symptom Triage",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Clinical Assessment Engine",
+                            text = "Clinical Medical Assistant • Guardrailed",
                             style = MaterialTheme.typography.bodySmall,
                             color = OnSurfaceVariant
                         )
@@ -120,12 +136,14 @@ fun TriageChatScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CanvasBackground)
             )
         },
+        contentWindowInsets = WindowInsets.statusBars,
         containerColor = CanvasBackground
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .imePadding()
         ) {
             // Symptom Chips Carousel
             Column(
@@ -187,7 +205,7 @@ fun TriageChatScreen(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Evaluating symptoms with AI safety models...",
+                                text = "Evaluating symptoms with Mistral AI...",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = OnSurfaceVariant
                             )
@@ -201,6 +219,7 @@ fun TriageChatScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(SurfaceContainerLowest)
+                    .navigationBarsPadding()
                     .padding(12.dp)
             ) {
                 Row(
@@ -275,7 +294,7 @@ private fun ChatMessageBubble(message: UiChatMessage) {
             }
         } else {
             ElevationCard(
-                modifier = Modifier.fillMaxWidth(0.92f)
+                modifier = Modifier.fillMaxWidth(0.95f)
             ) {
                 if (message.urgencyLevel != null) {
                     Row(
@@ -303,10 +322,10 @@ private fun ChatMessageBubble(message: UiChatMessage) {
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                Text(
-                    text = message.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurface
+                // Render formatted Markdown content
+                MarkdownText(
+                    markdown = message.content,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (message.recommendedAction != null) {

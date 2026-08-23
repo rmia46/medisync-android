@@ -1,9 +1,16 @@
 package com.medisync.android
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -16,6 +23,7 @@ import com.medisync.android.presentation.auth.AuthViewModelFactory
 import com.medisync.android.presentation.dispenser.DispenserViewModel
 import com.medisync.android.presentation.doctor.DoctorViewModel
 import com.medisync.android.presentation.navigation.MediSyncNavGraph
+import com.medisync.android.presentation.notifications.NotificationsViewModel
 import com.medisync.android.presentation.pharmacy.PharmacyViewModel
 import com.medisync.android.presentation.prescription.PrescriptionViewModel
 import com.medisync.android.presentation.totp.TotpViewModel
@@ -30,6 +38,25 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MediSyncTheme {
+                val permissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { _ ->
+                    // Notification permission result handled
+                }
+
+                LaunchedEffect(Unit) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val hasPermission = ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) == PackageManager.PERMISSION_GRANTED
+
+                        if (!hasPermission) {
+                            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                }
+
                 val navController = rememberNavController()
                 val authViewModel: AuthViewModel = viewModel(
                     factory = AuthViewModelFactory(app.authRepository)
@@ -98,6 +125,14 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 )
+                val notificationsViewModel: NotificationsViewModel = viewModel(
+                    factory = object : ViewModelProvider.Factory {
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                            return NotificationsViewModel(app.notificationStore) as T
+                        }
+                    }
+                )
 
                 MediSyncNavGraph(
                     navController = navController,
@@ -109,7 +144,8 @@ class MainActivity : ComponentActivity() {
                     alertsViewModel = alertsViewModel,
                     totpViewModel = totpViewModel,
                     doctorViewModel = doctorViewModel,
-                    dispenserViewModel = dispenserViewModel
+                    dispenserViewModel = dispenserViewModel,
+                    notificationsViewModel = notificationsViewModel
                 )
             }
         }

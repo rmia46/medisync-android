@@ -24,6 +24,8 @@ import com.medisync.android.presentation.doctor.DoctorEhrTimelineScreen
 import com.medisync.android.presentation.doctor.DoctorPatientListScreen
 import com.medisync.android.presentation.doctor.DoctorViewModel
 import com.medisync.android.presentation.drug.DrugDetailScreen
+import com.medisync.android.presentation.notifications.NotificationsScreen
+import com.medisync.android.presentation.notifications.NotificationsViewModel
 import com.medisync.android.presentation.pharmacy.PharmacyLocatorScreen
 import com.medisync.android.presentation.pharmacy.PharmacyViewModel
 import com.medisync.android.presentation.prescription.PrescriptionAnalysisScreen
@@ -45,9 +47,11 @@ fun MediSyncNavGraph(
     alertsViewModel: AlertsViewModel,
     totpViewModel: TotpViewModel,
     doctorViewModel: DoctorViewModel,
-    dispenserViewModel: DispenserViewModel
+    dispenserViewModel: DispenserViewModel,
+    notificationsViewModel: NotificationsViewModel
 ) {
     val authState by authViewModel.uiState.collectAsState()
+    val unreadCount by notificationsViewModel.unreadCount.collectAsState()
 
     NavHost(
         navController = navController,
@@ -106,6 +110,10 @@ fun MediSyncNavGraph(
             DashboardScreen(
                 user = authState.user,
                 totpViewModel = totpViewModel,
+                unreadNotificationCount = unreadCount,
+                onNavigateToNotifications = {
+                    navController.navigate(Screen.Notifications.route)
+                },
                 onNavigateToTriage = {
                     navController.navigate(Screen.Triage.route)
                 },
@@ -133,6 +141,13 @@ fun MediSyncNavGraph(
                         popUpTo(Screen.Dashboard.route) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(Screen.Notifications.route) {
+            NotificationsScreen(
+                viewModel = notificationsViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

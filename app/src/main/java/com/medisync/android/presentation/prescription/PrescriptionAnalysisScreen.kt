@@ -17,8 +17,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -35,12 +36,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.medisync.android.core.components.BadgeType
 import com.medisync.android.core.components.ButtonVariant
 import com.medisync.android.core.components.ElevationCard
 import com.medisync.android.core.components.MediSyncButton
 import com.medisync.android.core.components.MediSyncTextField
 import com.medisync.android.core.components.StatusBadge
+import com.medisync.android.core.rag.MedicineMatchingEngine
 import com.medisync.android.core.theme.CanvasBackground
 import com.medisync.android.core.theme.ErrorCrimson
 import com.medisync.android.core.theme.OnSurface
@@ -62,7 +65,7 @@ fun PrescriptionAnalysisScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Prescription Review", fontWeight = FontWeight.Bold) },
+                title = { Text("Prescription Review & RAG", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -93,7 +96,7 @@ fun PrescriptionAnalysisScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        StatusBadge(text = "OCR Extracted", type = BadgeType.EXTRACTED)
+                        StatusBadge(text = "OCR + RAG Verified", type = BadgeType.VERIFIED)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -109,7 +112,7 @@ fun PrescriptionAnalysisScreen(
                     MediSyncTextField(
                         value = uiState.digitizedNotes,
                         onValueChange = { viewModel.updateNotes(it) },
-                        label = "Clinical Notes"
+                        label = "Clinical Notes / Diagnosis"
                     )
                 }
             }
@@ -120,18 +123,25 @@ fun PrescriptionAnalysisScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Detected Medicines (${uiState.detectedMedicines.size})",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column {
+                        Text(
+                            text = "Matched Medicines (${uiState.detectedMedicines.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Grounded against Master Drug Catalog",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnSurfaceVariant
+                        )
+                    }
                     IconButton(
                         onClick = {
                             viewModel.addMedicine(
                                 PrescriptionMedicineDto(
-                                    brandName = "New Medicine",
-                                    saltComposition = "Active Ingredient",
-                                    dosage = "1 tablet",
+                                    brandName = "Napa Extra",
+                                    saltComposition = "Paracetamol + Caffeine",
+                                    dosage = "500mg/65mg",
                                     frequency = "1+0+1",
                                     duration = "5 days"
                                 )
@@ -144,6 +154,8 @@ fun PrescriptionAnalysisScreen(
             }
 
             itemsIndexed(uiState.detectedMedicines) { index, medicine ->
+                val matchResult = MedicineMatchingEngine.matchSingleMedicine(medicine)
+
                 ElevationCard {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -159,16 +171,42 @@ fun PrescriptionAnalysisScreen(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = matchResult.normalizedBrand,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                StatusBadge(
+                                    text = when (matchResult.matchType) {
+                                        com.medisync.android.core.rag.MatchType.EXACT_BRAND -> "Verified Brand"
+                                        com.medisync.android.core.rag.MatchType.FUZZY_BRAND -> "Fuzzy Matched"
+                                        com.medisync.android.core.rag.MatchType.EXACT_GENERIC -> "Generic Match"
+                                        com.medisync.android.core.rag.MatchType.FUZZY_GENERIC -> "Generic Match"
+                                        com.medisync.android.core.rag.MatchType.UNKNOWN -> "Custom Entry"
+                                    },
+                                    type = when (matchResult.matchType) {
+                                        com.medisync.android.core.rag.MatchType.EXACT_BRAND -> BadgeType.VERIFIED
+                                        com.medisync.android.core.rag.MatchType.FUZZY_BRAND -> BadgeType.AI_ASSISTED
+                                        com.medisync.android.core.rag.MatchType.EXACT_GENERIC -> BadgeType.VERIFIED
+                                        com.medisync.android.core.rag.MatchType.FUZZY_GENERIC -> BadgeType.AI_ASSISTED
+                                        com.medisync.android.core.rag.MatchType.UNKNOWN -> BadgeType.EXTRACTED
+                                    }
+                                )
+                            }
                             Text(
-                                text = medicine.brandName,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = medicine.saltComposition,
+                                text = "Generic: ${matchResult.verifiedSaltComposition}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = OnSurfaceVariant
                             )
+                            if (matchResult.matchedDrug != null) {
+                                Text(
+                                    text = "Mfg: ${matchResult.matchedDrug.manufacturer} • Est. Price: ৳${matchResult.matchedDrug.estimatedPrice}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = SecondarySkyBlue
+                                )
+                            }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Schedule: ${medicine.frequency} (${medicine.dosage}) • ${medicine.duration}",
@@ -185,7 +223,7 @@ fun PrescriptionAnalysisScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     MediSyncButton(
-                        text = "Find Generic Alternatives",
+                        text = "Find Bioequivalent Alternatives",
                         onClick = { onNavigateToAlternatives(medicine.brandName) },
                         variant = ButtonVariant.OUTLINE,
                         modifier = Modifier.fillMaxWidth()
@@ -196,7 +234,7 @@ fun PrescriptionAnalysisScreen(
             item {
                 Spacer(modifier = Modifier.height(10.dp))
                 MediSyncButton(
-                    text = "Save to Prescription Wallet",
+                    text = "Save to Digital Prescription Wallet",
                     isLoading = uiState.isLoading,
                     onClick = { viewModel.savePrescription(onSaveSuccess) }
                 )

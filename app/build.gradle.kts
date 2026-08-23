@@ -1,9 +1,23 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        load(FileInputStream(localPropertiesFile))
+    }
+}
+
+val mistralApiKey: String = localProperties.getProperty("MISTRAL_API_KEY")
+    ?: System.getenv("MISTRAL_API_KEY")
+    ?: ""
 
 android {
     namespace = "com.medisync.android"
@@ -20,6 +34,8 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "MISTRAL_API_KEY", "\"$mistralApiKey\"")
     }
 
     buildTypes {

@@ -1,5 +1,11 @@
 package com.medisync.android.presentation.alerts
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -39,11 +46,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.medisync.android.core.components.ElevationCard
 import com.medisync.android.core.components.MediSyncButton
 import com.medisync.android.core.components.MediSyncTextField
+import com.medisync.android.core.notifications.NotificationHelper
+import com.medisync.android.core.notifications.NotificationType
 import com.medisync.android.core.theme.CanvasBackground
 import com.medisync.android.core.theme.ErrorCrimson
 import com.medisync.android.core.theme.OnPrimary
@@ -59,12 +70,56 @@ fun MedicationRemindersScreen(
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var showAddSheet by remember { mutableStateOf(false) }
 
     var medicineName by remember { mutableStateOf("") }
     var dosage by remember { mutableStateOf("500 mg") }
     var frequency by remember { mutableStateOf("1-0-0") }
     var scheduledTime by remember { mutableStateOf("08:00") }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            NotificationHelper.showSystemNotification(
+                context,
+                title = "Medication Dose Due: Napa Extra",
+                message = "Take 1 tablet (500mg/65mg) with water.",
+                type = NotificationType.MEDICATION_ALERT
+            )
+            Toast.makeText(context, "System push notification sent!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Notification permission is required", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun triggerSystemNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (hasPermission) {
+                NotificationHelper.showSystemNotification(
+                    context,
+                    title = "Medication Dose Due: Napa Extra",
+                    message = "Take 1 tablet (500mg/65mg) with water.",
+                    type = NotificationType.MEDICATION_ALERT
+                )
+            } else {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            NotificationHelper.showSystemNotification(
+                context,
+                title = "Medication Dose Due: Napa Extra",
+                message = "Take 1 tablet (500mg/65mg) with water.",
+                type = NotificationType.MEDICATION_ALERT
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -97,6 +152,51 @@ fun MedicationRemindersScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
         ) {
+            item {
+                // Live Android System Push Notification Test Banner
+                ElevationCard(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(PrimaryTeal.copy(alpha = 0.12f), shape = MaterialTheme.shapes.medium),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = PrimaryTeal)
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Android System Push Alert",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Triggers real status bar alarm with sound & vibration",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = OnSurfaceVariant
+                                )
+                            }
+                        }
+                        MediSyncButton(
+                            text = "Test Alarm",
+                            onClick = { triggerSystemNotification() },
+                            modifier = Modifier.width(110.dp)
+                        )
+                    }
+                }
+            }
+
             item {
                 Text(
                     text = "Daily Treatment Routine (${uiState.alerts.size})",

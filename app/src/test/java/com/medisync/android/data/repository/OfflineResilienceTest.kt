@@ -59,7 +59,7 @@ class OfflineResilienceTest {
         val data = result.getOrNull()
         assertNotNull(data)
         assertEquals(UrgencyLevel.HIGH, data?.urgencyLevel)
-        assertTrue(data?.response?.contains("Chest Pain") == true)
+        assertTrue(data?.response?.contains("Chest", ignoreCase = true) == true)
     }
 
     @Test

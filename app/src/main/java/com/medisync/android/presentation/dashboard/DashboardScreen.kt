@@ -1,6 +1,7 @@
 package com.medisync.android.presentation.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,18 +14,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Emergency
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.LocalPharmacy
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PointOfSale
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,6 +67,8 @@ import com.medisync.android.presentation.totp.TotpViewModel
 fun DashboardScreen(
     user: UserProfile?,
     totpViewModel: TotpViewModel,
+    unreadNotificationCount: Int = 0,
+    onNavigateToNotifications: () -> Unit,
     onNavigateToTriage: () -> Unit,
     onNavigateToScan: () -> Unit,
     onNavigateToWallet: () -> Unit,
@@ -72,9 +78,10 @@ fun DashboardScreen(
     onNavigateToDrugDetail: (String) -> Unit,
     onLogout: () -> Unit
 ) {
-    val userName = user?.fullName ?: "Patient"
-    val role = user?.role ?: UserRole.PATIENT
     var showTotpSheet by remember { mutableStateOf(false) }
+
+    val displayName = user?.fullName ?: "Valued Patient"
+    val role = user?.role ?: UserRole.PATIENT
 
     Scaffold(
         topBar = {
@@ -82,20 +89,40 @@ fun DashboardScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Hello, $userName",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Role: ${role.name} • MediSync Clinical",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = OnSurfaceVariant
+                            text = "MediSync",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryTeal
                         )
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToNotifications) {
+                        BadgedBox(
+                            badge = {
+                                if (unreadNotificationCount > 0) {
+                                    Badge(
+                                        containerColor = ErrorCrimson,
+                                        contentColor = Color.White
+                                    ) {
+                                        Text("$unreadNotificationCount")
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.Notifications,
+                                contentDescription = "Notifications",
+                                tint = OnSurface
+                            )
+                        }
+                    }
                     IconButton(onClick = onLogout) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Log Out", tint = OnSurfaceVariant)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Sign Out",
+                            tint = OnSurfaceVariant
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CanvasBackground)
@@ -108,9 +135,46 @@ fun DashboardScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
-            // Emergency AI Symptom Triage Banner
+            // Patient Greeting & Role Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Text(
+                        text = "Hello, $displayName",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = OnSurface
+                    )
+                    Text(
+                        text = when (role) {
+                            UserRole.PATIENT -> "Your Universal Health Workspace"
+                            UserRole.DOCTOR -> "Clinical Practice & EHR Hub"
+                            UserRole.PHARMACY -> "Pharmacy POS & Dispenser Hub"
+                            UserRole.ADMIN -> "Platform System Administration"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = OnSurfaceVariant
+                    )
+                }
+                StatusBadge(
+                    text = role.name,
+                    type = when (role) {
+                        UserRole.PATIENT -> BadgeType.VERIFIED
+                        UserRole.DOCTOR -> BadgeType.AI_ASSISTED
+                        UserRole.PHARMACY -> BadgeType.EXTRACTED
+                        UserRole.ADMIN -> BadgeType.URGENCY_HIGH
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // AI Triage Callout Banner
             ElevationCard(
                 onClick = onNavigateToTriage,
                 modifier = Modifier.fillMaxWidth()
@@ -122,42 +186,35 @@ fun DashboardScreen(
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .background(ErrorCrimson.copy(alpha = 0.12f), shape = MaterialTheme.shapes.medium),
+                            .background(PrimaryTeal.copy(alpha = 0.12f), shape = MaterialTheme.shapes.medium),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Emergency,
+                            imageVector = Icons.Default.AutoAwesome,
                             contentDescription = "AI Triage",
-                            tint = ErrorCrimson,
-                            modifier = Modifier.size(28.dp)
+                            tint = PrimaryTeal,
+                            modifier = Modifier.size(26.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "AI Symptom Triage",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = OnSurface
-                            )
-                            StatusBadge(text = "AI-Assisted", type = BadgeType.AI_ASSISTED)
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Check symptoms & calculate urgency instantly",
+                            text = "AI Symptom Triage",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = OnSurface
+                        )
+                        Text(
+                            text = "Instant clinical assessment & home care advice",
                             style = MaterialTheme.typography.bodySmall,
                             color = OnSurfaceVariant
                         )
                     }
+                    StatusBadge(text = "AI Ready", type = BadgeType.AI_ASSISTED)
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Dynamic Passcode Generator Banner
             ElevationCard(

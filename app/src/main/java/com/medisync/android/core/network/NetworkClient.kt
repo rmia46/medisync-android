@@ -17,7 +17,6 @@ import kotlinx.serialization.json.Json
 
 object NetworkClient {
 
-    // Default emulator to host machine localhost:3000
     const val BASE_URL = "http://10.0.2.2:3000/api"
 
     fun create(authTokenManager: AuthTokenManager? = null): HttpClient {
@@ -41,6 +40,19 @@ object NetworkClient {
                 authTokenManager?.getAccessToken()?.let { token ->
                     header("Authorization", "Bearer $token")
                 }
+            }
+        }
+    }
+
+    fun createExternalClient(): HttpClient {
+        return HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json(Json {
+                    prettyPrint = true
+                    isLenient = true
+                    ignoreUnknownKeys = true
+                    encodeDefaults = true
+                })
             }
         }
     }
